@@ -3,8 +3,9 @@ dotnet publish Watchlog_Websocket_NET_CORE_8.csproj -c Release -r win-x64 --self
 - sonra "C:\Users\Can\source\repos\Watchlog_Websocket_NET_CORE_8\Watchlog_Websocket_NET_CORE_8\bin\Release\net8.0\win-x64" bu klasöün içindekileri kopyla ve al
 
 
- 
- 
+- 
+ # Servisi sil
+ sc.exe delete "Service"
  
 # Servisi oluştur
 sc.exe create "Service" binPath= "C:\Users\Can\Desktop\1\RobotBackupService5\Watchlog_Websocket_NET_CORE_8.exe"
