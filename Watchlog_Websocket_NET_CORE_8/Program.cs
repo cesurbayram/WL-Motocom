@@ -745,7 +745,7 @@ class Program
 
                 try
                 {
-                    await client.ConnectAsync(new Uri("wss://savolanode.fabricademo.com"), ct);
+                    await client.ConnectAsync(new Uri("ws://localhost:4000"), ct);
                     Console.WriteLine($"{DateTime.Now} WebSocket bağlantısı başarılı.");
                     wasConnected = true;
 
