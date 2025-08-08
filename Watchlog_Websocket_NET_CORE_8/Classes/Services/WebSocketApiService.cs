@@ -21,7 +21,7 @@ namespace Watchlog_Websocket_NET_CORE_8.Classes.Services
 
         public WebSocketApiService()
         {
-            _websocketUrl = "wss://savolanode.fabricademo.com";
+            _websocketUrl = "ws://10.0.110.3:4000";
             _cancellationTokenSource = new CancellationTokenSource();
             _pendingRequests = new ConcurrentDictionary<string, TaskCompletionSource<WebSocketApiResponse>>();
             _isConnected = false;

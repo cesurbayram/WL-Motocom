@@ -745,7 +745,7 @@ class Program
 
                 try
                 {
-                    await client.ConnectAsync(new Uri("ws://localhost:4000"), ct);
+                    await client.ConnectAsync(new Uri("ws://10.0.110.3:4000"), ct);
                     Console.WriteLine($"{DateTime.Now} WebSocket bağlantısı başarılı.");
                     wasConnected = true;
 
@@ -830,7 +830,7 @@ class Program
 
                                     switch (message.type)
                                     {
-                                        case "jobexit":
+                                        case "jobExit":
                                             RemoveTaskName.Add("JobData");
                                             RemoveTaskName.Add("JobSelectData");
                                             break;
@@ -940,6 +940,12 @@ class Program
                                             break;
                                         case "register":
                                             task = RegisterData(message.data.ipAddress);
+                                            break;
+                                        case "registerExit":
+                                            StopMonitoringTask($"{message.data.ipAddress}_RegisterData", "Register");
+                                            break;
+                                        case "absoDataExit":
+                                            StopMonitoringTask($"{message.data.ipAddress}_AbsoData", "AbsoData");
                                             break;
                                         case "manualBackup":
                                             Console.WriteLine($"{DateTime.Now} ManualBackup WebSocket mesajı alındı - IP: {message.data.ipAddress}, RequestId: {message.data.requestId}");
@@ -3681,34 +3687,40 @@ class Program
 
                         if (!HistoryRegister.SequenceEqual(combinedArray))
                         {
+                            // Değişen tüm değerleri topla
+                            var changedValues = new List<object>();
+                            
                             for (int i = 0; i < combinedArray.Length; i++)
                             {
                                 if (HistoryRegister[i] != combinedArray[i])
                                 {
-                                    var responseData = new
+                                    changedValues.Add(new
                                     {
-                                        type = "register",
-                                        data = new
-                                        {
-                                            type = "reg_read",
-                                            ip_address = robotIP,
-                                            values = new[]
-                                            {
-                                                new
-                                                {
-                                                    no = i,
-                                                    value = combinedArray[i],
-                                                }
-                                            }
-                                        }
-                                    };
-
-                                    var jsonData = JsonConvert.SerializeObject(responseData, _jsonSettings);
-                                    Console.WriteLine($"Register Data: {jsonData}");
-
-                                    QueueConfig.EnqueueWithLimit(_Register_Queue, jsonData);
-                                    Interlocked.Increment(ref _Register_FetchCount);
+                                        no = i,
+                                        value = combinedArray[i],
+                                    });
                                 }
+                            }
+
+                            // Tüm değişiklikleri tek mesajda gönder
+                            if (changedValues.Count > 0)
+                            {
+                                var responseData = new
+                                {
+                                    type = "register",
+                                    data = new
+                                    {
+                                        type = "reg_read",
+                                        ip_address = robotIP,
+                                        values = changedValues.ToArray()
+                                    }
+                                };
+
+                                var jsonData = JsonConvert.SerializeObject(responseData, _jsonSettings);
+                                Console.WriteLine($"Register Data: {jsonData}");
+
+                                QueueConfig.EnqueueWithLimit(_Register_Queue, jsonData);
+                                Interlocked.Increment(ref _Register_FetchCount);
                             }
 
                             HistoryRegister = combinedArray;
@@ -3752,6 +3764,40 @@ class Program
                     // CancellationTokenSource zaten dispose edilmişse sessizce devam et
                 }
             }
+        }
+    }
+    #endregion
+
+    #region MONITORING TASK MANAGEMENT
+    private static void StopMonitoringTask(string taskKey, string taskName)
+    {
+        try
+        {
+            if (_robotTasks.TryRemove(taskKey, out var cts))
+            {
+                try
+                {
+                    if (cts != null && !cts.IsCancellationRequested)
+                    {
+                        cts.Cancel();
+                    }
+                    cts?.Dispose();
+                    Console.WriteLine($"{DateTime.Now} {taskName} monitoring stopped - TaskKey: {taskKey}");
+                }
+                catch (ObjectDisposedException)
+                {
+                    // CancellationTokenSource zaten dispose edilmişse sessizce devam et
+                    Console.WriteLine($"{DateTime.Now} {taskName} CancellationTokenSource already disposed - TaskKey: {taskKey}");
+                }
+            }
+            else
+            {
+                Console.WriteLine($"{DateTime.Now} {taskName} task not found for stopping - TaskKey: {taskKey}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"{DateTime.Now} Error stopping {taskName} task - TaskKey: {taskKey}, Error: {ex.Message}");
         }
     }
     #endregion
